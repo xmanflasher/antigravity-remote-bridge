@@ -1,0 +1,18 @@
+{
+  "name": "antigravity-remote-bridge",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node -e \"console.log('🚀 啟動中...')\" && .venv\\Scripts\\python main.py",
+    "start2": "nodemon --watch core --watch main.py --ext py --exec .venv\\Scripts\\python main.py",
+    "kill": "taskkill /F /IM python.exe",
+    "dev": ".venv\\Scripts\\python main.py",
+    "install-deps": ".venv\\Scripts\\pip install -r requirements.txt"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs"
+}
