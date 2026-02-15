@@ -1,5 +1,6 @@
-import os
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from core.infrastructure.system_ctrl import SystemController
+
 
 def get_layout(func_name, proj_name, middle_buttons, show_back=True, show_exit=True):
     """
@@ -15,9 +16,15 @@ def get_layout(func_name, proj_name, middle_buttons, show_back=True, show_exit=T
     """
     # 建立訊息文字 (Markdown Label)
     proj_display = f"🎯 專案｜`{proj_name}`" if proj_name else "❌ 專案｜`未選擇`"
+    
+    # 偵測鎖定狀態
+    is_locked = SystemController.is_screen_locked()
+    lock_status = "🔒 **系統鎖定中**" if is_locked else "✅ **系統正常 (已解鎖)**"
+    
     text = (
         f"💎 **功能**｜#{func_name}\n"
         f"{proj_display}\n"
+        f"🖥️ **狀態**｜{lock_status}\n"
         f"────────────────"
     )
     
@@ -53,14 +60,23 @@ def get_main_menu(proj_name=None):
     has_proj = proj_name is not None
     def btn_text(text, active): return text if active else f"🔘 {text} (未選擇)"
 
+    # 系統控制按鈕
+    is_locked = SystemController.is_screen_locked()
+    lock_btn_text = "🔓 解除鎖定" if is_locked else "🔒 鎖定系統"
+    lock_callback = "system_unlock" if is_locked else "system_lock"
+    
     middle = [
         [InlineKeyboardButton("📂 專案列表 (切換專案)", callback_data="back_to_projects")],
         [
             InlineKeyboardButton(btn_text("📑 Documentation", has_proj), callback_data="menu_docs" if has_proj else "warn_no_proj"),
             InlineKeyboardButton(btn_text("💻 Coding", has_proj), callback_data="menu_coding" if has_proj else "warn_no_proj"),
         ],
-        [InlineKeyboardButton(btn_text("📄 文件瀏覽", has_proj), callback_data="menu_browser" if has_proj else "warn_no_proj")]
+        [
+            InlineKeyboardButton(btn_text("📄 文件瀏覽", has_proj), callback_data="menu_browser" if has_proj else "warn_no_proj"),
+            InlineKeyboardButton(lock_btn_text, callback_data=lock_callback)
+        ]
     ]
+
     return get_layout("主選單", proj_name, middle, show_back=False, show_exit=False)
 
 def get_project_menu(base_path, proj_name=None):

@@ -186,6 +186,21 @@ class BotManager:
             
             await query.answer(status_info.replace("**", "").replace("`", ""), show_alert=True)
 
+        elif data == "system_lock":
+            await self.sys_ctrl.lock_screen()
+            await query.answer("🔒 系統已鎖定")
+            text, markup = get_main_menu(proj)
+            await query.edit_message_text(text, reply_markup=markup, parse_mode="Markdown")
+
+        elif data == "system_unlock":
+            await self.sys_ctrl.unlock_screen()
+            await query.answer("🔓 已發送解除鎖定訊號")
+            await asyncio.sleep(1)
+            text, markup = get_main_menu(proj)
+            await query.edit_message_text(text, reply_markup=markup, parse_mode="Markdown")
+
+
+
         elif data in ["browse_docs", "browse_ref_docs"]:
             if not proj:
                 await query.answer("⚠️ 請先選擇專案。", show_alert=True)

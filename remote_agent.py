@@ -9,6 +9,8 @@ from telegram.ext import (
     CallbackQueryHandler,
     ContextTypes,
 )
+from core.infrastructure.system_ctrl import SystemController
+
 
 # --- 讀取設定檔 ---
 CONFIG_FILE = "config.json"
@@ -44,12 +46,23 @@ def get_project_list():
 
 def get_project_menu():
     projects = get_project_list()
-    if not projects:
-        return None
-    keyboard = [
-        [InlineKeyboardButton(f"📁 {p}", callback_data=f"select_{p}")] for p in projects
-    ]
+    keyboard = []
+    
+    # 專案列表
+    if projects:
+        for p in projects:
+            keyboard.append([InlineKeyboardButton(f"📁 {p}", callback_data=f"select_{p}")])
+    
+    # 系統控制按鈕
+    is_locked = SystemController.is_screen_locked()
+    status_icon = "🔒" if is_locked else "🔓"
+    status_text = "解除鎖定" if is_locked else "鎖定系統"
+    callback = "system_unlock" if is_locked else "system_lock"
+    
+    keyboard.append([InlineKeyboardButton(f"{status_icon} {status_text}", callback_data=callback)])
+    
     return InlineKeyboardMarkup(keyboard)
+
 
 
 def get_task_menu(proj_name):
@@ -89,16 +102,15 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     menu = get_project_menu()
-    if menu:
-        await update.message.reply_text(
-            "🚀 **TopGun 遠端系統已就緒**\n\n請從下方選擇你要操作的專案資料夾：",
-            reply_markup=menu,
-            parse_mode="Markdown",
-        )
-    else:
-        await update.message.reply_text(
-            f"❌ 在 `{BASE_PROJECT_PATH}` 下找不到任何專案資料夾。"
-        )
+    is_locked = SystemController.is_screen_locked()
+    status_str = "🔒 **系統鎖定中**" if is_locked else "✅ **系統正常 (已解鎖)**"
+    
+    await update.message.reply_text(
+        f"🚀 **TopGun 遠端系統已就緒**\n\n當前狀態：{status_str}\n\n請從下方選擇你要操作的專案或控制系統：",
+        reply_markup=menu,
+        parse_mode="Markdown",
+    )
+
 
 
 # /help 指令：操作說明
@@ -136,10 +148,42 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # 返回邏輯
     if data == "back_to_projects":
+        is_locked = SystemController.is_screen_locked()
+        status_str = "🔒 **系統鎖定中**" if is_locked else "✅ **系統正常 (已解鎖)**"
         await query.edit_message_text(
-            "🚀 請重新選擇專案：", reply_markup=get_project_menu()
+            f"🚀 **當前狀態：{status_str}**\n請選擇專案或控制系統：", 
+            reply_markup=get_project_menu(),
+            parse_mode="Markdown"
         )
         return
+
+    # 系統控制邏輯
+    if data == "system_lock":
+        await SystemController.lock_screen()
+        await query.answer("🔒 系統已鎖定")
+        # 重新整理選單
+        await query.edit_message_text(
+            "🚀 **系統已鎖定**\n請選擇操作：",
+            reply_markup=get_project_menu(),
+            parse_mode="Markdown"
+        )
+        return
+
+    if data == "system_unlock":
+        await SystemController.unlock_screen()
+        await query.answer("🔓 已發送解除鎖定訊號 (請確認螢幕是否喚醒)")
+        # 稍微延遲後重新整理狀態看是否成功 (雖然 is_screen_locked 在模擬按鍵後不一定立刻變，但試試看)
+        import asyncio
+        await asyncio.sleep(1)
+        is_locked = SystemController.is_screen_locked()
+        status_str = "🔒 **系統鎖定中**" if is_locked else "✅ **系統正常 (已解鎖)**"
+        await query.edit_message_text(
+            f"🚀 **當前狀態：{status_str}**\n請選擇操作：",
+            reply_markup=get_project_menu(),
+            parse_mode="Markdown"
+        )
+        return
+
 
     # 任務執行邏輯
     proj_name = user_context.get(user_id)
